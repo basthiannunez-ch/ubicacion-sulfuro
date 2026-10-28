@@ -282,7 +282,8 @@
     });
     return mejor;
   }
-  const externo = p => proyectar([p.x, p.y], PEA).d > LEJOS_PEATONAL;
+  const SOLO_VEHICULO = new Set(['P8']); // Estación Petrolera: no hay acceso a pie
+  const externo = p => SOLO_VEHICULO.has(p.id) || proyectar([p.x, p.y], PEA).d > LEJOS_PEATONAL;
   function ruta(desde, hasta, red) {
     const pa = [desde.x, desde.y], pb = [hasta.x, hasta.y];
     const directo = metros(pa, pb);
@@ -364,7 +365,7 @@
       avisado = clave;
       // Al abrir la página no sale ventana; aparece cuando la persona elige un destino
       if (primera) { /* nada */ }
-      else if (enCamioneta) avisar('🚙', 'Debes ir en camioneta', `<b>${externo(d) ? d.nombre : 'Tu punto de partida'}</b> está fuera de los caminos peatonales del campamento. Para llegar debes ir <b>sí o sí en camioneta</b>, por la carretera. No camines por la orilla del camino.`);
+      else if (enCamioneta) avisar('🚙', 'Debes ir en camioneta', `<b>${externo(d) ? d.nombre : 'Tu punto de partida'}</b> no tiene acceso a pie por los caminos peatonales del campamento. Para llegar debes ir <b>sí o sí en camioneta</b>, por la carretera. No camines por la orilla del camino.`);
       else if (peligros.length) avisar('⚠️', peligros.length > 1 ? `Tu camino pasa por ${peligros.length} cruces peligrosos` : 'Tu camino pasa por un cruce peligroso', 'Están marcados con <b>!</b> en el plano.<ul><li>Cruza con cuidado y solo por el paso peatonal.</li><li>No mires el celular mientras cruzas.</li><li>Mira a ambos lados: camionetas, buses y camiones tienen prioridad de paso.</li><li>Si hay polvo o poca luz, espera a ver bien antes de cruzar.</li></ul>');
     }
     if (!d) avisado = '';
@@ -380,7 +381,7 @@
       res.innerHTML = `<div><b>${m < 1000 ? Math.round(m / 10) * 10 + ' m' : (m / 1000).toFixed(1).replace('.', ',') + ' km'}</b><span>${enCamioneta ? 'por carretera' : 'caminando'}</span></div>
         <div><b>${enCamioneta ? Math.max(1, Math.round(m / 400)) : Math.max(1, Math.round(m / 75))} min</b><span>${enCamioneta ? 'en camioneta' : 'a pie'}</span></div>
         <div><b>${m < 25 ? 'llegaste' : rumbo(og, d)}</b><span>dirección</span></div>
-        ${enCamioneta ? '<p class="nota-auto">🚙 Lugar externo: solo se llega en camioneta.</p>' : peligros.length ? `<p class="nota-cruce">⚠️ ${peligros.length} cruce${peligros.length > 1 ? 's' : ''} peligroso${peligros.length > 1 ? 's' : ''} en el camino: no mires el celular al cruzar.</p>` : ''}`;
+        ${enCamioneta ? '<p class="nota-auto">🚙 Solo se llega en camioneta, por carretera.</p>' : peligros.length ? `<p class="nota-cruce">⚠️ ${peligros.length} cruce${peligros.length > 1 ? 's' : ''} peligroso${peligros.length > 1 ? 's' : ''} en el camino: no mires el celular al cruzar.</p>` : ''}`;
       res.hidden = false;
     } else {
       res.hidden = true;
