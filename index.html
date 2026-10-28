@@ -334,11 +334,13 @@
     chips.appendChild(c);
   });
 
+  const norm = t => t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/pabellon(es)?/g, '').replace(/[^a-z0-9]/g, '').replace(/(^|[^0-9])0+(?=[0-9])/g, '$1');
   function pintar() {
-    const q = document.getElementById('q').value.trim().toLowerCase();
+    const q = norm(document.getElementById('q').value);
     const lista = document.getElementById('lista');
     const vis = PUNTOS.filter(p => (filtroTipo === 'Todos' || p.tipo === filtroTipo) &&
-      (!q || `${p.id} ${p.nombre} ${p.nombre.replace(/\s+/g, '')} ${p.tipo} ${p.sector || ''}`.toLowerCase().includes(q.replace(/^pab(ell[oó]n)?\s*/, ''))));
+      (!q || norm(`${p.id} ${p.nombre} ${p.tipo} ${p.sector || ''}`).includes(q)));
     lista.innerHTML = '';
     vis.forEach(p => {
       const li = document.createElement('li');
@@ -348,7 +350,14 @@
     });
     document.getElementById('cuenta').textContent = `${vis.length} de ${PUNTOS.length} lugares · toca uno para trazar el camino`;
   }
+  // Enter elige el primer resultado como destino
   document.getElementById('q').addEventListener('input', pintar);
+  document.getElementById('q').addEventListener('keydown', e => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const b = document.querySelector('#lista button');
+    if (b) b.click();
+  });
   pintar();
   render();
   window.addEventListener('hashchange', () => location.reload());
