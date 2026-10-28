@@ -13,24 +13,34 @@
 <style>
   /* Layout: señalética de faena; ficha del punto arriba, plano a la izquierda y buscador a la derecha (una columna en celular) */
   :root {
-    --bg: #eef1f4; --panel: #ffffff; --ink: #18212b; --muted: #5b6875; --line: #d3dae1;
-    --accent: #f2a900; --accent-ink: #1a1400; --here: #d7261e; --pin: #1f4e79; --pin-soft: rgba(31,78,121,.18);
+    --bg: #f3ece1; --panel: #fffdf9; --ink: #13233a; --muted: #5b6474; --line: #e2d6c4;
+    --accent: #b3561a; --accent-ink: #ffffff; --here: #d71920; --pin: #0f3b66; --pin-soft: rgba(15,59,102,.15);
+    --peligro: #f2a900; --sand-top: #e6d3b5;
     --display: "Barlow Condensed", "Arial Narrow", Arial, sans-serif;
     --body: "Barlow", "Segoe UI", Arial, sans-serif;
     --mono: "JetBrains Mono", Consolas, monospace;
   }
   @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-    --bg: #11161c; --panel: #1a2129; --ink: #e8edf2; --muted: #9aa7b4; --line: #2c3742;
-    --accent: #f5b82e; --accent-ink: #1a1400; --here: #ff4a3d; --pin: #7fb2e5; --pin-soft: rgba(127,178,229,.22); color-scheme: dark } }
+    --bg: #0c1624; --panel: #13213a; --ink: #eef2f7; --muted: #9fb0c4; --line: #28405e;
+    --accent: #e0843f; --accent-ink: #1a0d03; --here: #ff4a3d; --pin: #8cc0ef; --pin-soft: rgba(140,192,239,.2);
+    --peligro: #f5b82e; --sand-top: #1a2a44; color-scheme: dark } }
   :root[data-theme="dark"] {
-    --bg: #11161c; --panel: #1a2129; --ink: #e8edf2; --muted: #9aa7b4; --line: #2c3742;
-    --accent: #f5b82e; --accent-ink: #1a1400; --here: #ff4a3d; --pin: #7fb2e5; --pin-soft: rgba(127,178,229,.22); color-scheme: dark }
+    --bg: #0c1624; --panel: #13213a; --ink: #eef2f7; --muted: #9fb0c4; --line: #28405e;
+    --accent: #e0843f; --accent-ink: #1a0d03; --here: #ff4a3d; --pin: #8cc0ef; --pin-soft: rgba(140,192,239,.2);
+    --peligro: #f5b82e; --sand-top: #1a2a44; color-scheme: dark }
   * { box-sizing: border-box; }
-  body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.45;
+  body { background: linear-gradient(180deg, var(--sand-top) 0, var(--bg) 520px) no-repeat, var(--bg); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.45;
     padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 0 40px; }
   .wrap { max-width: 1180px; margin: 0 auto; display: grid; gap: 18px; }
-  header.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 10px;
-    padding-block: 22px 14px; border-bottom: 4px solid var(--accent); }
+  header.top { position: relative; overflow: hidden; display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 10px;
+    margin-top: 16px; padding: 26px 22px 92px; border-radius: 10px; color: #fff; background: #0b2440; border-bottom: 5px solid var(--accent); isolation: isolate; }
+  header.top > div { position: relative; z-index: 1; }
+  header.top .fondo { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; }
+  header.top .eyebrow { color: #f0b383; }
+  header.top .coords-site { color: #c9d6e6; }
+  .marca { display: flex; gap: 6px; margin-top: 10px; }
+  .marca span { font-family: var(--display); font-weight: 700; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; padding: 3px 8px; border-radius: 3px; }
+  .marca .m1 { background: rgba(255,255,255,.14); color: #fff; } .marca .m2 { background: #d71920; color: #fff; }
   .eyebrow { font-family: var(--display); font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-size: 14px; }
   h1 { font-family: var(--display); font-weight: 700; font-size: clamp(30px, 6vw, 46px); line-height: 1; margin: 4px 0 0; text-wrap: balance; }
   .coords-site { font-family: var(--mono); font-size: 13px; color: var(--muted); }
@@ -100,7 +110,7 @@
   @media (prefers-reduced-motion: reduce) { svg.trazo line { animation: none; } }
   svg.trazo polyline.auto { stroke: var(--pin); stroke-dasharray: 2 9; stroke-width: 5; }
   .cruce { position: absolute; z-index: 3; width: 22px; height: 22px; margin: -11px 0 0 -11px; display: grid; place-items: center;
-    background: var(--accent); color: var(--accent-ink); font: 800 14px/1 var(--display, sans-serif); border: 2px solid #1a1400;
+    background: var(--peligro); color: #1a1400; font: 800 14px/1 var(--display, sans-serif); border: 2px solid #1a1400;
     clip-path: polygon(50% 0, 100% 100%, 0 100%); padding-top: 6px; box-sizing: border-box; pointer-events: none; }
   .nota-auto, .nota-cruce { flex-basis: 100%; margin: 4px 0 0; font-size: 14px; font-weight: 600; }
   .nota-auto { color: var(--pin); } .nota-cruce { color: var(--ink); }
@@ -123,9 +133,22 @@
 
 <div class="wrap">
   <header class="top">
+    <svg class="fondo" viewBox="0 0 1200 300" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+      <defs>
+        <linearGradient id="cielo" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0b2440"/><stop offset=".55" stop-color="#1d3d63"/><stop offset=".85" stop-color="#c97a3e"/><stop offset="1" stop-color="#e9a25f"/></linearGradient>
+        <linearGradient id="tierra" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b8743c"/><stop offset="1" stop-color="#7a4520"/></linearGradient>
+      </defs>
+      <rect width="1200" height="300" fill="url(#cielo)"/>
+      <circle cx="930" cy="214" r="34" fill="#f6c27d" opacity=".85"/>
+      <path d="M0 230 L90 180 L170 205 L260 150 L340 190 L420 140 L520 196 L600 160 L700 205 L790 150 L880 188 L980 135 L1080 182 L1200 150 V300 H0 Z" fill="#2c4a6e" opacity=".9"/>
+      <path d="M0 252 L120 214 L230 238 L330 200 L450 236 L560 206 L690 242 L800 210 L930 240 L1040 212 L1200 236 V300 H0 Z" fill="#8a4f26"/>
+      <path d="M0 272 L180 254 L360 268 L540 250 L760 270 L960 252 L1200 266 V300 H0 Z" fill="url(#tierra)"/>
+      <path d="M0 286 C300 276 600 294 1200 280 V300 H0 Z" fill="#5c3418"/>
+    </svg>
     <div>
-      <div class="eyebrow">Mantención Newrest · Ubicación por QR</div>
+      <div class="eyebrow">Ubicación por QR · Cómo llegar</div>
       <h1>Campamento Sulfuro, Centinela</h1>
+      <div class="marca"><span class="m1">Minería · Desierto de Atacama</span><span class="m2">Mantención Newrest</span></div>
     </div>
     <div class="coords-site">≈ 23,010° S · 69,101° O</div>
   </header>
