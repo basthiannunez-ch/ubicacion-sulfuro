@@ -98,6 +98,20 @@
   svg.trazo line, svg.trazo polyline { stroke: var(--here); stroke-width: 4; stroke-dasharray: 10 7; stroke-linecap: round; animation: avanza 1s linear infinite; }
   @keyframes avanza { to { stroke-dashoffset: -17; } }
   @media (prefers-reduced-motion: reduce) { svg.trazo line { animation: none; } }
+  svg.trazo polyline.auto { stroke: var(--pin); stroke-dasharray: 2 9; stroke-width: 5; }
+  .cruce { position: absolute; z-index: 3; width: 22px; height: 22px; margin: -11px 0 0 -11px; display: grid; place-items: center;
+    background: var(--accent); color: var(--accent-ink); font: 800 14px/1 var(--display, sans-serif); border: 2px solid #1a1400;
+    clip-path: polygon(50% 0, 100% 100%, 0 100%); padding-top: 6px; box-sizing: border-box; pointer-events: none; }
+  .nota-auto, .nota-cruce { flex-basis: 100%; margin: 4px 0 0; font-size: 14px; font-weight: 600; }
+  .nota-auto { color: var(--pin); } .nota-cruce { color: var(--ink); }
+  .aviso { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 16px; background: rgba(10,14,18,.55); }
+  .aviso[hidden] { display: none; }
+  .aviso-caja { background: var(--panel); color: var(--ink); border-radius: 14px; max-width: 380px; width: 100%; padding: 20px 20px 16px; box-shadow: 0 18px 50px rgba(0,0,0,.35); border-top: 6px solid var(--accent); }
+  .aviso-caja .ico { font-size: 34px; line-height: 1; }
+  .aviso-caja h2 { font-family: var(--display); font-size: 24px; margin: 8px 0 6px; line-height: 1.1; }
+  .aviso-caja p, .aviso-caja ul { margin: 0 0 12px; font-size: 15px; line-height: 1.45; }
+  .aviso-caja ul { padding-left: 20px; }
+  .aviso-caja button { width: 100%; min-height: 46px; border: 0; border-radius: 10px; background: var(--accent); color: var(--accent-ink); font: 700 17px/1 var(--display, sans-serif); cursor: pointer; }
   .gps-ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 12px; }
   #gps-estado { font-size: 14px; color: var(--muted); min-width: 0; }
   .gps-yo { position: absolute; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%; background: var(--here); border: 3px solid #fff;
@@ -140,7 +154,16 @@
     </ol>
   </section>
 
-  <footer>Coordenadas calculadas desde el plano oficial con 3 puntos de referencia de Google Maps (Hotel Chañar, Pioneros IV y Bodega Central). Precisión estimada de 10 a 20 m. Las rutas siguen las calles y pasillos principales del plano.</footer>
+  <footer>Coordenadas calculadas desde el plano oficial con 3 puntos de referencia de Google Maps (Hotel Chañar, Pioneros IV y Bodega Central). Precisión estimada de 10 a 20 m. Las rutas a pie siguen los caminos peatonales marcados en el plano; los lugares externos se indican en camioneta por carretera.</footer>
+</div>
+
+<div class="aviso" id="aviso" role="alertdialog" aria-modal="true" aria-labelledby="aviso-titulo" hidden>
+  <div class="aviso-caja">
+    <div class="ico" id="aviso-icono" aria-hidden="true"></div>
+    <h2 id="aviso-titulo"></h2>
+    <div id="aviso-texto"></div>
+    <button type="button" id="aviso-ok">Entendido</button>
+  </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -190,8 +213,8 @@
     </div>
     <div id="qr" title="QR de este punto"></div>`;
   const selO = document.getElementById('sel-origen'), selD = document.getElementById('sel-destino');
-  selO.onchange = () => { origen = selO.value; porGPS = false; if (destino === origen) destino = null; render(); };
-  selD.onchange = () => { destino = selD.value || null; render(); };
+  selO.onchange = () => { interactuo = true; origen = selO.value; porGPS = false; if (destino === origen) destino = null; render(); };
+  selD.onchange = () => { interactuo = true; destino = selD.value || null; render(); };
 
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.setAttribute('class', 'trazo');
@@ -208,8 +231,12 @@
     mapa.appendChild(t);
   }
 
-  // Red de caminos trazada sobre el plano (calles y pasillos); la ruta va por aquí y no en línea recta
+  // Red de caminos para vehículos (carretera): solo para lugares externos, a los que se llega en camioneta
   const RED = { nodos: {"w0": [0.0965, 0.0238], "w1": [0.0965, 0.1506], "w1e": [0.1743, 0.1506], "w2": [0.0965, 0.2139], "w3": [0.0965, 0.378], "w4": [0.0965, 0.4437], "w5": [0.0804, 0.5151], "c1": [0.2011, 0.2076], "c2": [0.4021, 0.1807], "c3": [0.6032, 0.1331], "c4": [0.6971, 0.1109], "c5": [0.9584, 0.0317], "r1": [0.4021, 0.378], "r2": [0.4021, 0.4437], "r3": [0.496, 0.4437], "r4": [0.6836, 0.4437], "nw": [0.5094, 0.2734], "nn": [0.7038, 0.1585], "ne": [0.9584, 0.2892], "m1": [0.5965, 0.3566], "m2": [0.8311, 0.2235], "h0": [0.4021, 0.4913], "h2": [0.3606, 0.5285], "h4": [0.3887, 0.5745], "h5": [0.4169, 0.6189], "hs": [0.4021, 0.6815], "hw": [0.2212, 0.6973], "v2a": [0.496, 0.5602], "v2b": [0.496, 0.6022], "v2c": [0.496, 0.6577], "cc": [0.4558, 0.5602], "v1a": [0.6836, 0.5325], "v1b": [0.6836, 0.6022], "v1c": [0.6836, 0.6339], "v1d": [0.6836, 0.6577], "v1e": [0.6501, 0.729], "v1f": [0.5764, 0.7924], "v1g": [0.4424, 0.8384], "s2": [0.8043, 0.4477], "s3": [0.9383, 0.4477], "s5": [0.8043, 0.5325], "s6": [0.9383, 0.5325], "s8": [0.8043, 0.6339], "s9": [0.9383, 0.6339], "d0": [0.0469, 0.6735], "d1": [0.1609, 0.7472], "d2": [0.2882, 0.832], "d3": [0.4424, 0.9113], "d4": [0.6032, 0.9905], "b1": [0.2279, 0.8796], "b2": [0.134, 0.9311]}, tramos: [["w0", "w1"], ["w1", "w1e"], ["w1", "w2"], ["w2", "w3"], ["w3", "w4"], ["w4", "w5"], ["w5", "d0"], ["w2", "c1"], ["c1", "c2"], ["c2", "c3"], ["c3", "c4"], ["c4", "c5"], ["c4", "nn"], ["w3", "r1"], ["r1", "r2"], ["w4", "r2"], ["r2", "r3"], ["r3", "r4"], ["nw", "nn"], ["nn", "ne"], ["ne", "r4"], ["r4", "m1"], ["m1", "nw"], ["m1", "m2"], ["m2", "nn"], ["m2", "ne"], ["r2", "h0"], ["h0", "h2"], ["h2", "h4"], ["h4", "h5"], ["h5", "hs"], ["hs", "hw"], ["hw", "d1"], ["hs", "v2c"], ["v2c", "v1d"], ["r3", "v2a"], ["v2a", "v2b"], ["v2b", "v2c"], ["v2a", "cc"], ["cc", "h4"], ["r4", "v1a"], ["v1a", "v1b"], ["v1b", "v1c"], ["v1c", "v1d"], ["v1d", "v1e"], ["v1e", "v1f"], ["v1f", "v1g"], ["v1g", "d2"], ["r4", "s2"], ["s2", "s3"], ["v1a", "s5"], ["s5", "s6"], ["v1c", "s8"], ["s8", "s9"], ["s2", "s5"], ["s5", "s8"], ["s3", "s6"], ["s6", "s9"], ["d0", "d1"], ["d1", "d2"], ["d2", "d3"], ["d3", "d4"], ["d2", "b1"], ["b1", "b2"]] };
+  // Caminos peatonales marcados a mano sobre el plano impreso (naranjo) y cruces peligrosos (celeste)
+  const PEA = {"nodos":{"n0":[0.5147,0.4311],"n1":[0.5067,0.4342],"n2":[0.496,0.4342],"n3":[0.4879,0.4311],"n4":[0.4424,0.4041],"n5":[0.4397,0.3978],"n6":[0.4826,0.6292],"n7":[0.4987,0.6117],"n8":[0.5067,0.6038],"n9":[0.504,0.5895],"n10":[0.4826,0.6307],"n11":[0.2761,0.4485],"n12":[0.2761,0.4469],"n13":[0.2788,0.4469],"n14":[0.2761,0.4532],"n15":[0.6971,0.3487],"n16":[0.6997,0.3487],"n17":[0.6971,0.3518],"n18":[0.6836,0.3661],"n19":[0.7507,0.5388],"n20":[0.748,0.5388],"n21":[0.7507,0.5515],"n22":[0.7453,0.5563],"n23":[0.7962,0.2884],"n24":[0.7936,0.2884],"n25":[0.8043,0.2868],"n26":[0.8365,0.2678],"n27":[0.2038,0.3978],"n28":[0.2011,0.3962],"n29":[0.2038,0.3962],"n30":[0.2011,0.412],"n31":[0.3485,0.4628],"n32":[0.3458,0.4628],"n33":[0.3485,0.4691],"n34":[0.3539,0.4818],"n35":[0.3566,0.4945],"n36":[0.3485,0.5071],"n37":[0.3378,0.5151],"n38":[0.3324,0.5135],"n39":[0.2895,0.5024],"n40":[0.2788,0.4945],"n41":[0.2735,0.4818],"n42":[0.2681,0.4786],"n43":[0.2466,0.477],"n44":[0.2413,0.4739],"n45":[0.5255,0.4691],"n46":[0.5228,0.4691],"n47":[0.5791,0.4691],"n48":[0.5228,0.4707],"n49":[0.193,0.3962],"n50":[0.1903,0.3946],"n51":[0.1903,0.3962],"n52":[0.4129,0.6086],"n53":[0.4021,0.6022],"n54":[0.1689,0.6038],"n55":[0.1689,0.6022],"n56":[0.1716,0.6022],"n57":[0.1662,0.607],"n58":[0.1609,0.6624],"n59":[0.1555,0.6688],"n60":[0.1367,0.6783],"n61":[0.7024,0.4279],"n62":[0.2386,0.3978],"n63":[0.2413,0.3962],"n64":[0.2815,0.3962],"n65":[0.2359,0.3978],"n66":[0.2386,0.3994],"n67":[0.2735,0.4532],"n68":[0.2788,0.4532],"n69":[0.681,0.3661],"n70":[0.6676,0.3645],"n71":[0.6542,0.3582],"n72":[0.681,0.3677],"n73":[0.7319,0.4073],"n74":[0.7292,0.4089],"n75":[0.7319,0.4089],"n76":[0.7346,0.4089],"n77":[0.7024,0.4849],"n78":[0.7024,0.4834],"n79":[0.7024,0.4913],"n80":[0.7078,0.5008],"n81":[0.7024,0.5198],"n82":[0.8043,0.6292],"n83":[0.7534,0.6292],"n84":[0.6381,0.3962],"n85":[0.6542,0.3883],"n86":[0.6354,0.3962],"n87":[0.6381,0.3978],"n88":[0.6113,0.3867],"n89":[0.6139,0.3803],"n90":[0.6461,0.3597],"n91":[0.5898,0.3883],"n92":[0.6247,0.3962],"n93":[0.2842,0.3708],"n94":[0.2815,0.3265],"n95":[0.2788,0.3249],"n96":[0.244,0.3233],"n97":[0.1957,0.3265],"n98":[0.1877,0.3296],"n99":[0.1903,0.3423],"n100":[0.2842,0.3724],"n101":[0.4826,0.5452],"n102":[0.4853,0.5452],"n103":[0.4772,0.6466],"n104":[0.4665,0.6498],"n105":[0.2413,0.4723],"n106":[0.2493,0.4659],"n107":[0.2681,0.4548],"n108":[0.7024,0.5388],"n109":[0.6971,0.5547],"n110":[0.7802,0.3645],"n111":[0.7775,0.3645],"n112":[0.7802,0.3661],"n113":[0.4129,0.6181],"n114":[0.2842,0.374],"n115":[0.6488,0.2726],"n116":[0.6488,0.271],"n117":[0.6113,0.2916],"n118":[0.6059,0.2948],"n119":[0.5898,0.3059],"n120":[0.5737,0.3106],"n121":[0.4129,0.6197],"n122":[0.4155,0.6197],"n123":[0.4558,0.3851],"n124":[0.4558,0.3835],"n125":[0.4531,0.3899],"n126":[0.4397,0.3962],"n127":[0.7748,0.3914],"n128":[0.7721,0.3962],"n129":[0.7534,0.4089],"n130":[0.7426,0.4105],"n131":[0.3887,0.5705],"n132":[0.3834,0.5626],"n133":[0.1501,0.4057],"n134":[0.1501,0.3994],"n135":[0.1609,0.3962],"n136":[0.1877,0.3962],"n137":[0.7024,0.5832],"n138":[0.6971,0.58],"n139":[0.6381,0.4041],"n140":[0.6568,0.4152],"n141":[0.6702,0.4184],"n142":[0.681,0.4247],"n143":[0.7024,0.393],"n144":[0.7265,0.3899],"n145":[0.7399,0.3772],"n146":[0.7024,0.3946],"n147":[0.3941,0.6276],"n148":[0.3941,0.626],"n149":[0.3968,0.626],"n150":[0.3914,0.6371],"n151":[0.3619,0.6656],"n152":[0.571,0.3106],"n153":[0.5094,0.2726],"n154":[0.5094,0.2694],"n155":[0.5174,0.2631],"n156":[0.2735,0.4279],"n157":[0.2788,0.4216],"n158":[0.2788,0.4168],"n159":[0.2842,0.412],"n160":[0.6702,0.2742],"n161":[0.7185,0.3074],"n162":[0.7212,0.3074],"n163":[0.7185,0.309],"n164":[0.6649,0.5547],"n165":[0.5845,0.5547],"n166":[0.5737,0.5515],"n167":[0.5684,0.5388],"n168":[0.5308,0.5357],"n169":[0.7051,0.5198],"n170":[0.1984,0.5325],"n171":[0.2011,0.5325],"n172":[0.7507,0.5832],"n173":[0.748,0.5832],"n174":[0.7024,0.5848],"n175":[0.6836,0.3376],"n176":[0.6863,0.3376],"n177":[0.6863,0.3391],"n178":[0.6997,0.6038],"n179":[0.6971,0.6054],"n180":[0.8123,0.2583],"n181":[0.7855,0.2726],"n182":[0.7802,0.2821],"n183":[0.5684,0.3962],"n184":[0.5684,0.401],"n185":[0.5147,0.4279],"n186":[0.4772,0.5436],"n187":[0.4718,0.5341],"n188":[0.4638,0.5071],"n189":[0.4638,0.4881],"n190":[0.4718,0.4754],"n191":[0.4718,0.4612],"n192":[0.4665,0.458],"n193":[0.4504,0.4564],"n194":[0.3834,0.4564],"n195":[0.7399,0.3423],"n196":[0.7319,0.3391],"n197":[0.7399,0.3439],"n198":[0.7507,0.6292],"n199":[0.7507,0.6276],"n200":[0.1716,0.5705],"n201":[0.193,0.542],"n202":[0.193,0.5357],"n203":[0.7239,0.4818],"n204":[0.7212,0.4834],"n205":[0.437,0.3962],"n206":[0.4236,0.3962],"n207":[0.3941,0.374],"n208":[0.3753,0.3661],"n209":[0.2306,0.3962],"n210":[0.5845,0.393],"n211":[0.5898,0.3899],"n212":[0.1984,0.6038],"n213":[0.2145,0.6022],"n214":[0.2145,0.6086],"n215":[0.2198,0.6117],"n216":[0.7507,0.3534],"n217":[0.7641,0.355],"n218":[0.7024,0.4818],"n219":[0.7373,0.3296],"n220":[0.7507,0.317],"n221":[0.7909,0.2948],"n222":[0.7024,0.3994],"n223":[0.5282,0.5341],"n224":[0.5308,0.5119],"n225":[0.5255,0.4881],"n226":[0.5201,0.4818],"n227":[0.5282,0.5357],"n228":[0.6676,0.5547],"n229":[0.5201,0.4358],"n230":[0.6676,0.58],"n231":[0.6649,0.5927],"n232":[0.6997,0.6307],"n233":[0.6971,0.6307],"n234":[0.4987,0.5404],"n235":[0.681,0.374],"n236":[0.6863,0.3819],"n237":[0.5067,0.5895],"n238":[0.2225,0.6117],"n239":[0.2225,0.6181],"n240":[0.2252,0.6212],"n241":[0.3807,0.4564],"n242":[0.2466,0.5388],"n243":[0.2252,0.5341],"n244":[0.437,0.3772],"n245":[0.6434,0.2599],"n246":[0.5952,0.2314],"n247":[0.5094,0.5895],"n248":[0.7721,0.2821],"n249":[0.7292,0.3074],"n250":[0.3834,0.561],"n251":[0.3646,0.5325],"n252":[0.3753,0.5103],"n253":[0.3914,0.4881],"n254":[0.3914,0.477],"n255":[0.3861,0.4691],"n256":[0.4611,0.3835],"n257":[0.4718,0.3772],"n258":[0.5282,0.5927],"n259":[0.5898,0.5911],"n260":[0.7292,0.5198],"n261":[0.2466,0.4089],"n262":[0.2413,0.4057],"n263":[0.3351,0.6149],"n264":[0.3432,0.6149],"n265":[0.3807,0.6054],"n266":[0.4504,0.6276],"n267":[0.5684,0.374],"n268":[0.5147,0.3391],"n269":[0.5094,0.3328],"n270":[0.5201,0.3265],"n271":[0.5416,0.3281],"n272":[0.5523,0.3217],"n273":[0.5657,0.3185],"n274":[0.3056,0.4659],"n275":[0.3592,0.4564],"n276":[0.7185,0.4168],"n277":[0.7051,0.42],"n278":[0.504,0.5769],"n279":[0.4879,0.5674],"n280":[0.2306,0.4754],"n281":[0.2252,0.4849],"n282":[0.2091,0.5103],"n283":[0.2038,0.5166],"n284":[0.9491,0.5388],"n285":[0.8043,0.58],"n286":[0.8043,0.5832]},"tramos":[["n0","n1"],["n0","n185"],["n0","n229"],["n1","n2"],["n10","n103"],["n10","n6"],["n100","n114"],["n100","n208"],["n100","n93"],["n101","n102"],["n101","n186"],["n102","n234"],["n103","n104"],["n105","n106"],["n105","n44"],["n106","n107"],["n107","n67"],["n108","n109"],["n108","n20"],["n108","n81"],["n109","n138"],["n109","n228"],["n11","n12"],["n11","n13"],["n11","n14"],["n110","n111"],["n110","n112"],["n111","n112"],["n111","n217"],["n113","n121"],["n113","n122"],["n113","n52"],["n114","n64"],["n115","n116"],["n115","n117"],["n115","n160"],["n116","n245"],["n117","n118"],["n118","n119"],["n119","n120"],["n12","n13"],["n12","n156"],["n120","n152"],["n121","n122"],["n121","n149"],["n122","n266"],["n123","n124"],["n123","n125"],["n124","n244"],["n124","n256"],["n125","n126"],["n126","n205"],["n126","n5"],["n127","n128"],["n128","n129"],["n129","n130"],["n130","n76"],["n131","n132"],["n131","n53"],["n132","n250"],["n133","n134"],["n134","n135"],["n135","n136"],["n136","n50"],["n136","n51"],["n137","n138"],["n137","n173"],["n137","n174"],["n139","n140"],["n139","n87"],["n14","n67"],["n14","n68"],["n140","n141"],["n141","n142"],["n142","n61"],["n143","n144"],["n143","n146"],["n143","n236"],["n144","n145"],["n146","n222"],["n147","n148"],["n147","n149"],["n147","n150"],["n148","n149"],["n15","n16"],["n15","n17"],["n15","n177"],["n150","n151"],["n152","n153"],["n152","n273"],["n153","n154"],["n154","n155"],["n156","n157"],["n157","n158"],["n158","n159"],["n159","n64"],["n16","n196"],["n160","n161"],["n161","n162"],["n161","n163"],["n162","n163"],["n162","n249"],["n164","n165"],["n164","n228"],["n164","n230"],["n165","n166"],["n166","n167"],["n167","n168"],["n168","n223"],["n168","n227"],["n169","n260"],["n169","n81"],["n17","n18"],["n170","n171"],["n170","n202"],["n170","n283"],["n171","n243"],["n172","n173"],["n172","n199"],["n172","n286"],["n174","n178"],["n175","n176"],["n175","n177"],["n176","n177"],["n178","n179"],["n18","n69"],["n18","n72"],["n180","n181"],["n181","n182"],["n182","n24"],["n182","n248"],["n183","n184"],["n183","n210"],["n184","n185"],["n186","n187"],["n187","n188"],["n188","n189"],["n189","n190"],["n19","n20"],["n19","n21"],["n19","n284"],["n190","n191"],["n191","n192"],["n192","n193"],["n193","n194"],["n194","n241"],["n195","n196"],["n195","n197"],["n196","n219"],["n197","n216"],["n198","n199"],["n198","n232"],["n198","n83"],["n199","n83"],["n2","n3"],["n200","n201"],["n200","n55"],["n201","n202"],["n203","n204"],["n204","n78"],["n205","n206"],["n205","n5"],["n206","n207"],["n207","n208"],["n209","n29"],["n209","n65"],["n21","n22"],["n210","n211"],["n211","n91"],["n212","n213"],["n212","n56"],["n213","n214"],["n214","n215"],["n215","n238"],["n216","n217"],["n218","n61"],["n218","n78"],["n219","n220"],["n220","n221"],["n221","n24"],["n223","n224"],["n223","n227"],["n224","n225"],["n225","n226"],["n226","n48"],["n229","n46"],["n23","n24"],["n23","n25"],["n230","n231"],["n232","n233"],["n235","n236"],["n235","n72"],["n237","n247"],["n237","n9"],["n238","n239"],["n239","n240"],["n241","n255"],["n241","n275"],["n242","n243"],["n245","n246"],["n247","n258"],["n247","n278"],["n248","n249"],["n25","n26"],["n250","n251"],["n251","n252"],["n252","n253"],["n253","n254"],["n254","n255"],["n256","n257"],["n258","n259"],["n261","n262"],["n262","n66"],["n263","n264"],["n264","n265"],["n265","n53"],["n266","n6"],["n267","n268"],["n268","n269"],["n269","n270"],["n27","n28"],["n27","n29"],["n27","n30"],["n270","n271"],["n271","n272"],["n272","n273"],["n274","n32"],["n274","n68"],["n275","n31"],["n276","n277"],["n276","n74"],["n277","n61"],["n278","n279"],["n28","n29"],["n28","n49"],["n280","n281"],["n280","n44"],["n281","n282"],["n282","n283"],["n285","n286"],["n3","n4"],["n31","n32"],["n31","n33"],["n33","n34"],["n34","n35"],["n35","n36"],["n36","n37"],["n37","n38"],["n38","n39"],["n39","n40"],["n4","n5"],["n40","n41"],["n41","n42"],["n42","n43"],["n43","n44"],["n45","n46"],["n45","n47"],["n45","n48"],["n46","n48"],["n49","n50"],["n49","n51"],["n50","n51"],["n52","n53"],["n54","n55"],["n54","n56"],["n54","n57"],["n55","n56"],["n57","n58"],["n58","n59"],["n59","n60"],["n6","n7"],["n62","n63"],["n62","n65"],["n62","n66"],["n63","n64"],["n65","n66"],["n69","n70"],["n69","n72"],["n7","n8"],["n70","n71"],["n71","n90"],["n73","n74"],["n73","n75"],["n73","n76"],["n74","n75"],["n75","n76"],["n77","n78"],["n77","n79"],["n79","n80"],["n8","n9"],["n80","n81"],["n82","n83"],["n84","n85"],["n84","n86"],["n84","n87"],["n86","n87"],["n86","n92"],["n88","n89"],["n88","n91"],["n88","n92"],["n89","n90"],["n93","n94"],["n94","n95"],["n95","n96"],["n96","n97"],["n97","n98"],["n98","n99"]]};
+  const CRUCES = [{"x": 0.2842, "y": 0.4429}, {"x": 0.6005, "y": 0.3922}, {"x": 0.7051, "y": 0.4374}, {"x": 0.6944, "y": 0.3368}, {"x": 0.4906, "y": 0.5468}, {"x": 0.5214, "y": 0.4414}];
+  const LEJOS_PEATONAL = 130; // metros: más lejos que esto de un camino peatonal, el lugar es externo
   const refsR = ['01', '16', '36'].map(id => porId[id]);
   function sol3(m, v) {
     const det = a => a[0][0] * (a[1][1] * a[2][2] - a[1][2] * a[2][1]) - a[0][1] * (a[1][0] * a[2][2] - a[1][2] * a[2][0]) + a[0][2] * (a[1][0] * a[2][1] - a[1][1] * a[2][0]);
@@ -221,10 +248,10 @@
   const aGeo = (x, y) => ({ lat: kLat[0] * x + kLat[1] * y + kLat[2], lng: kLng[0] * x + kLng[1] * y + kLng[2] });
   const metros = (a, b) => distancia(aGeo(a[0], a[1]), aGeo(b[0], b[1]));
 
-  function proyectar(p) {
+  function proyectar(p, red) {
     let mejor = null;
-    RED.tramos.forEach(([a, b]) => {
-      const A = RED.nodos[a], B = RED.nodos[b];
+    red.tramos.forEach(([a, b]) => {
+      const A = red.nodos[a], B = red.nodos[b];
       const dx = B[0] - A[0], dy = B[1] - A[1];
       const t = Math.max(0, Math.min(1, ((p[0] - A[0]) * dx + (p[1] - A[1]) * dy) / (dx * dx + dy * dy)));
       const q = [A[0] + t * dx, A[1] + t * dy];
@@ -233,15 +260,16 @@
     });
     return mejor;
   }
-  function ruta(desde, hasta) {
+  const externo = p => proyectar([p.x, p.y], PEA).d > LEJOS_PEATONAL;
+  function ruta(desde, hasta, red) {
     const pa = [desde.x, desde.y], pb = [hasta.x, hasta.y];
     const directo = metros(pa, pb);
-    const sa = proyectar(pa), sb = proyectar(pb);
+    const sa = proyectar(pa, red), sb = proyectar(pb, red);
     if (directo < 60 || directo <= sa.d + sb.d) return { puntos: [pa, pb], m: directo };
-    const pos = Object.assign({}, RED.nodos, { _a: sa.q, _b: sb.q });
+    const pos = Object.assign({}, red.nodos, { _a: sa.q, _b: sb.q });
     const ady = {};
     const unir = (u, v) => { const w = metros(pos[u], pos[v]); (ady[u] = ady[u] || []).push([v, w]); (ady[v] = ady[v] || []).push([u, w]); };
-    RED.tramos.forEach(([a, b]) => unir(a, b));
+    red.tramos.forEach(([a, b]) => unir(a, b));
     [['_a', sa], ['_b', sb]].forEach(([k, s]) => { unir(k, s.a); unir(k, s.b); });
     if ((sa.a === sb.a && sa.b === sb.b) || (sa.a === sb.b && sa.b === sb.a)) unir('_a', '_b');
     const dist = { _a: 0 }, prev = {}, hecho = new Set();
@@ -257,6 +285,27 @@
     for (let k = '_b'; k; k = prev[k]) camino.unshift(pos[k]);
     return { puntos: [pa, ...camino, pb], m: sa.d + dist._b + sb.d };
   }
+  // Cruces peligrosos por los que pasa el camino (a menos de ~12 px del trazo)
+  function crucesEn(puntos) {
+    return CRUCES.filter(c => puntos.some((A, i) => {
+      const B = puntos[i + 1];
+      if (!B) return false;
+      const ax = A[0] * W, ay = A[1] * H, dx = B[0] * W - ax, dy = B[1] * H - ay;
+      const t = Math.max(0, Math.min(1, ((c.x * W - ax) * dx + (c.y * H - ay) * dy) / (dx * dx + dy * dy || 1)));
+      return Math.hypot(ax + t * dx - c.x * W, ay + t * dy - c.y * H) < 12;
+    }));
+  }
+
+  const aviso = document.getElementById('aviso');
+  document.getElementById('aviso-ok').onclick = () => { aviso.hidden = true; };
+  function avisar(icono, titulo, texto) {
+    document.getElementById('aviso-icono').textContent = icono;
+    document.getElementById('aviso-titulo').textContent = titulo;
+    document.getElementById('aviso-texto').innerHTML = texto;
+    aviso.hidden = false;
+    document.getElementById('aviso-ok').focus();
+  }
+  let avisado = '', interactuo = false;
 
   let qrHecho = null;
   function render() {
@@ -276,8 +325,27 @@
     if (enVivo) { yo.style.left = (po.x * 100) + '%'; yo.style.top = (po.y * 100) + '%'; }
     etiqueta(po, aqui ? 'Estás aquí' : 'Partida');
     if (d) etiqueta(d, d.nombre, 'dest');
-    const camino = d ? ruta(po, d) : null;
-    svg.innerHTML = camino ? `<polyline points="${camino.puntos.map(([x, y]) => `${x * W},${y * H}`).join(' ')}" vector-effect="non-scaling-stroke"></polyline>` : '';
+    const enCamioneta = !!d && (externo(po) || externo(d));
+    const camino = d ? ruta(po, d, enCamioneta ? RED : PEA) : null;
+    svg.innerHTML = camino ? `<polyline class="${enCamioneta ? 'auto' : ''}" points="${camino.puntos.map(([x, y]) => `${x * W},${y * H}`).join(' ')}" vector-effect="non-scaling-stroke"></polyline>` : '';
+    mapa.querySelectorAll('.cruce').forEach(el => el.remove());
+    const peligros = camino && !enCamioneta ? crucesEn(camino.puntos) : [];
+    peligros.forEach(c => {
+      const el = document.createElement('div');
+      el.className = 'cruce'; el.textContent = '!'; el.title = 'Cruce peligroso';
+      el.style.left = (c.x * 100) + '%'; el.style.top = (c.y * 100) + '%';
+      mapa.appendChild(el);
+    });
+    const clave = d ? `${d.id}|${enCamioneta}|${peligros.length}` : '';
+    if (clave && clave !== avisado) {
+      const primera = !interactuo;
+      avisado = clave;
+      // Al abrir la página no sale ventana; aparece cuando la persona elige un destino
+      if (primera) { /* nada */ }
+      else if (enCamioneta) avisar('🚙', 'Debes ir en camioneta', `<b>${externo(d) ? d.nombre : 'Tu punto de partida'}</b> está fuera de los caminos peatonales del campamento. Para llegar debes ir <b>sí o sí en camioneta</b>, por la carretera. No camines por la orilla del camino.`);
+      else if (peligros.length) avisar('⚠️', peligros.length > 1 ? `Tu camino pasa por ${peligros.length} cruces peligrosos` : 'Tu camino pasa por un cruce peligroso', 'Están marcados con <b>!</b> en el plano.<ul><li>Cruza con cuidado y solo por el paso peatonal.</li><li>No mires el celular mientras cruzas.</li><li>Mira a ambos lados: camionetas, buses y camiones tienen prioridad de paso.</li><li>Si hay polvo o poca luz, espera a ver bien antes de cruzar.</li></ul>');
+    }
+    if (!d) avisado = '';
 
     document.getElementById('f-lbl').textContent = porGPS ? 'Estás aquí · según tu GPS' : aqui ? 'Estás aquí' : 'Punto de partida · ejemplo';
     document.getElementById('f-nombre').textContent = o.nombre;
@@ -287,9 +355,10 @@
     const res = document.getElementById('f-res');
     if (d) {
       const m = distancia(og, d) < 25 ? distancia(og, d) : camino.m;
-      res.innerHTML = `<div><b>${m < 1000 ? Math.round(m / 10) * 10 + ' m' : (m / 1000).toFixed(1).replace('.', ',') + ' km'}</b><span>caminando</span></div>
-        <div><b>${Math.max(1, Math.round(m / 75))} min</b><span>a pie</span></div>
-        <div><b>${m < 25 ? 'llegaste' : rumbo(og, d)}</b><span>dirección</span></div>`;
+      res.innerHTML = `<div><b>${m < 1000 ? Math.round(m / 10) * 10 + ' m' : (m / 1000).toFixed(1).replace('.', ',') + ' km'}</b><span>${enCamioneta ? 'por carretera' : 'caminando'}</span></div>
+        <div><b>${enCamioneta ? Math.max(1, Math.round(m / 400)) : Math.max(1, Math.round(m / 75))} min</b><span>${enCamioneta ? 'en camioneta' : 'a pie'}</span></div>
+        <div><b>${m < 25 ? 'llegaste' : rumbo(og, d)}</b><span>dirección</span></div>
+        ${enCamioneta ? '<p class="nota-auto">🚙 Lugar externo: solo se llega en camioneta.</p>' : peligros.length ? `<p class="nota-cruce">⚠️ ${peligros.length} cruce${peligros.length > 1 ? 's' : ''} peligroso${peligros.length > 1 ? 's' : ''} en el camino: no mires el celular al cruzar.</p>` : ''}`;
       res.hidden = false;
     } else {
       res.hidden = true;
@@ -364,6 +433,7 @@
   function elegir(id) {
     if (id === origen) return;
     destino = id;
+    interactuo = true;
     render();
   }
 
