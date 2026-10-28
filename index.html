@@ -94,7 +94,8 @@
   .pin.destino { width: 26px; height: 26px; margin: -13px 0 0 -13px; background: var(--accent); border: 3px solid var(--accent-ink); z-index: 2; }
   .tag.dest { background: var(--accent); color: var(--accent-ink); }
   svg.trazo { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
-  svg.trazo line { stroke: var(--here); stroke-width: 4; stroke-dasharray: 10 7; stroke-linecap: round; animation: avanza 1s linear infinite; }
+  svg.trazo polyline { fill: none; stroke-linejoin: round; }
+  svg.trazo line, svg.trazo polyline { stroke: var(--here); stroke-width: 4; stroke-dasharray: 10 7; stroke-linecap: round; animation: avanza 1s linear infinite; }
   @keyframes avanza { to { stroke-dashoffset: -17; } }
   @media (prefers-reduced-motion: reduce) { svg.trazo line { animation: none; } }
   .gps-ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 12px; }
@@ -139,7 +140,7 @@
     </ol>
   </section>
 
-  <footer>Coordenadas calculadas desde el plano oficial con 3 puntos de referencia de Google Maps (Hotel Chañar, Pioneros IV y Bodega Central). Precisión estimada de 10 a 20 m. Distancias en línea recta.</footer>
+  <footer>Coordenadas calculadas desde el plano oficial con 3 puntos de referencia de Google Maps (Hotel Chañar, Pioneros IV y Bodega Central). Precisión estimada de 10 a 20 m. Las rutas siguen las calles y pasillos principales del plano.</footer>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -207,6 +208,56 @@
     mapa.appendChild(t);
   }
 
+  // Red de caminos trazada sobre el plano (calles y pasillos); la ruta va por aquí y no en línea recta
+  const RED = { nodos: {"w0": [0.0965, 0.0238], "w1": [0.0965, 0.1506], "w1e": [0.1743, 0.1506], "w2": [0.0965, 0.2139], "w3": [0.0965, 0.378], "w4": [0.0965, 0.4437], "w5": [0.0804, 0.5151], "c1": [0.2011, 0.2076], "c2": [0.4021, 0.1807], "c3": [0.6032, 0.1331], "c4": [0.6971, 0.1109], "c5": [0.9584, 0.0317], "r1": [0.4021, 0.378], "r2": [0.4021, 0.4437], "r3": [0.496, 0.4437], "r4": [0.6836, 0.4437], "nw": [0.5094, 0.2734], "nn": [0.7038, 0.1585], "ne": [0.9584, 0.2892], "m1": [0.5965, 0.3566], "m2": [0.8311, 0.2235], "h0": [0.4021, 0.4913], "h2": [0.3606, 0.5285], "h4": [0.3887, 0.5745], "h5": [0.4169, 0.6189], "hs": [0.4021, 0.6815], "hw": [0.2212, 0.6973], "v2a": [0.496, 0.5602], "v2b": [0.496, 0.6022], "v2c": [0.496, 0.6577], "cc": [0.4558, 0.5602], "v1a": [0.6836, 0.5325], "v1b": [0.6836, 0.6022], "v1c": [0.6836, 0.6339], "v1d": [0.6836, 0.6577], "v1e": [0.6501, 0.729], "v1f": [0.5764, 0.7924], "v1g": [0.4424, 0.8384], "s2": [0.8043, 0.4477], "s3": [0.9383, 0.4477], "s5": [0.8043, 0.5325], "s6": [0.9383, 0.5325], "s8": [0.8043, 0.6339], "s9": [0.9383, 0.6339], "d0": [0.0469, 0.6735], "d1": [0.1609, 0.7472], "d2": [0.2882, 0.832], "d3": [0.4424, 0.9113], "d4": [0.6032, 0.9905], "b1": [0.2279, 0.8796], "b2": [0.134, 0.9311]}, tramos: [["w0", "w1"], ["w1", "w1e"], ["w1", "w2"], ["w2", "w3"], ["w3", "w4"], ["w4", "w5"], ["w5", "d0"], ["w2", "c1"], ["c1", "c2"], ["c2", "c3"], ["c3", "c4"], ["c4", "c5"], ["c4", "nn"], ["w3", "r1"], ["r1", "r2"], ["w4", "r2"], ["r2", "r3"], ["r3", "r4"], ["nw", "nn"], ["nn", "ne"], ["ne", "r4"], ["r4", "m1"], ["m1", "nw"], ["m1", "m2"], ["m2", "nn"], ["m2", "ne"], ["r2", "h0"], ["h0", "h2"], ["h2", "h4"], ["h4", "h5"], ["h5", "hs"], ["hs", "hw"], ["hw", "d1"], ["hs", "v2c"], ["v2c", "v1d"], ["r3", "v2a"], ["v2a", "v2b"], ["v2b", "v2c"], ["v2a", "cc"], ["cc", "h4"], ["r4", "v1a"], ["v1a", "v1b"], ["v1b", "v1c"], ["v1c", "v1d"], ["v1d", "v1e"], ["v1e", "v1f"], ["v1f", "v1g"], ["v1g", "d2"], ["r4", "s2"], ["s2", "s3"], ["v1a", "s5"], ["s5", "s6"], ["v1c", "s8"], ["s8", "s9"], ["s2", "s5"], ["s5", "s8"], ["s3", "s6"], ["s6", "s9"], ["d0", "d1"], ["d1", "d2"], ["d2", "d3"], ["d3", "d4"], ["d2", "b1"], ["b1", "b2"]] };
+  const refsR = ['01', '16', '36'].map(id => porId[id]);
+  function sol3(m, v) {
+    const det = a => a[0][0] * (a[1][1] * a[2][2] - a[1][2] * a[2][1]) - a[0][1] * (a[1][0] * a[2][2] - a[1][2] * a[2][0]) + a[0][2] * (a[1][0] * a[2][1] - a[1][1] * a[2][0]);
+    const D = det(m);
+    return [0, 1, 2].map(i => det(m.map((fila, r) => fila.map((x, c) => c === i ? v[r] : x))) / D);
+  }
+  const MX = refsR.map(p => [p.x, p.y, 1]);
+  const kLat = sol3(MX, refsR.map(p => p.lat)), kLng = sol3(MX, refsR.map(p => p.lng));
+  const aGeo = (x, y) => ({ lat: kLat[0] * x + kLat[1] * y + kLat[2], lng: kLng[0] * x + kLng[1] * y + kLng[2] });
+  const metros = (a, b) => distancia(aGeo(a[0], a[1]), aGeo(b[0], b[1]));
+
+  function proyectar(p) {
+    let mejor = null;
+    RED.tramos.forEach(([a, b]) => {
+      const A = RED.nodos[a], B = RED.nodos[b];
+      const dx = B[0] - A[0], dy = B[1] - A[1];
+      const t = Math.max(0, Math.min(1, ((p[0] - A[0]) * dx + (p[1] - A[1]) * dy) / (dx * dx + dy * dy)));
+      const q = [A[0] + t * dx, A[1] + t * dy];
+      const d = metros(p, q);
+      if (!mejor || d < mejor.d) mejor = { a, b, q, d };
+    });
+    return mejor;
+  }
+  function ruta(desde, hasta) {
+    const pa = [desde.x, desde.y], pb = [hasta.x, hasta.y];
+    const directo = metros(pa, pb);
+    const sa = proyectar(pa), sb = proyectar(pb);
+    if (directo < 60 || directo <= sa.d + sb.d) return { puntos: [pa, pb], m: directo };
+    const pos = Object.assign({}, RED.nodos, { _a: sa.q, _b: sb.q });
+    const ady = {};
+    const unir = (u, v) => { const w = metros(pos[u], pos[v]); (ady[u] = ady[u] || []).push([v, w]); (ady[v] = ady[v] || []).push([u, w]); };
+    RED.tramos.forEach(([a, b]) => unir(a, b));
+    [['_a', sa], ['_b', sb]].forEach(([k, s]) => { unir(k, s.a); unir(k, s.b); });
+    if ((sa.a === sb.a && sa.b === sb.b) || (sa.a === sb.b && sa.b === sb.a)) unir('_a', '_b');
+    const dist = { _a: 0 }, prev = {}, hecho = new Set();
+    while (true) {
+      let u = null;
+      for (const k in dist) if (!hecho.has(k) && (u === null || dist[k] < dist[u])) u = k;
+      if (u === null || u === '_b') break;
+      hecho.add(u);
+      (ady[u] || []).forEach(([v, w]) => { if (dist[v] === undefined || dist[u] + w < dist[v]) { dist[v] = dist[u] + w; prev[v] = u; } });
+    }
+    if (dist._b === undefined) return { puntos: [pa, pb], m: directo };
+    const camino = [];
+    for (let k = '_b'; k; k = prev[k]) camino.unshift(pos[k]);
+    return { puntos: [pa, ...camino, pb], m: sa.d + dist._b + sb.d };
+  }
+
   let qrHecho = null;
   function render() {
     const o = porId[origen], d = destino ? porId[destino] : null;
@@ -225,7 +276,8 @@
     if (enVivo) { yo.style.left = (po.x * 100) + '%'; yo.style.top = (po.y * 100) + '%'; }
     etiqueta(po, aqui ? 'Estás aquí' : 'Partida');
     if (d) etiqueta(d, d.nombre, 'dest');
-    svg.innerHTML = d ? `<line x1="${po.x * W}" y1="${po.y * H}" x2="${d.x * W}" y2="${d.y * H}" vector-effect="non-scaling-stroke"></line>` : '';
+    const camino = d ? ruta(po, d) : null;
+    svg.innerHTML = camino ? `<polyline points="${camino.puntos.map(([x, y]) => `${x * W},${y * H}`).join(' ')}" vector-effect="non-scaling-stroke"></polyline>` : '';
 
     document.getElementById('f-lbl').textContent = porGPS ? 'Estás aquí · según tu GPS' : aqui ? 'Estás aquí' : 'Punto de partida · ejemplo';
     document.getElementById('f-nombre').textContent = o.nombre;
@@ -234,8 +286,8 @@
       : `Punto ${o.id} · ${o.tipo} · ${o.lat.toFixed(5)}, ${o.lng.toFixed(5)}`;
     const res = document.getElementById('f-res');
     if (d) {
-      const m = distancia(og, d);
-      res.innerHTML = `<div><b>${m < 1000 ? Math.round(m / 10) * 10 + ' m' : (m / 1000).toFixed(1).replace('.', ',') + ' km'}</b><span>distancia</span></div>
+      const m = distancia(og, d) < 25 ? distancia(og, d) : camino.m;
+      res.innerHTML = `<div><b>${m < 1000 ? Math.round(m / 10) * 10 + ' m' : (m / 1000).toFixed(1).replace('.', ',') + ' km'}</b><span>caminando</span></div>
         <div><b>${Math.max(1, Math.round(m / 75))} min</b><span>a pie</span></div>
         <div><b>${m < 25 ? 'llegaste' : rumbo(og, d)}</b><span>dirección</span></div>`;
       res.hidden = false;
