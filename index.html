@@ -152,6 +152,7 @@
   let origen = desdeQR ? hashId : '20';
   let destino = desdeQR ? null : '36';
   let filtroTipo = 'Todos';
+  let porGPS = false;
 
   function distancia(a, b) {
     const R = 6371000, r = Math.PI / 180;
@@ -183,7 +184,7 @@
     </div>
     <div id="qr" title="QR de este punto"></div>`;
   const selO = document.getElementById('sel-origen'), selD = document.getElementById('sel-destino');
-  selO.onchange = () => { origen = selO.value; if (destino === origen) destino = null; render(); };
+  selO.onchange = () => { origen = selO.value; porGPS = false; if (destino === origen) destino = null; render(); };
   selD.onchange = () => { destino = selD.value || null; render(); };
 
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -211,11 +212,12 @@
       el.classList.toggle('destino', el.dataset.id === destino);
     });
     mapa.querySelectorAll('.tag').forEach(el => el.remove());
-    etiqueta(o, desdeQR && origen === hashId ? 'Estás aquí' : 'Partida');
+    const aqui = porGPS || (desdeQR && origen === hashId);
+    etiqueta(o, aqui ? 'Estás aquí' : 'Partida');
     if (d) etiqueta(d, d.nombre, 'dest');
     svg.innerHTML = d ? `<line x1="${o.x * W}" y1="${o.y * H}" x2="${d.x * W}" y2="${d.y * H}" vector-effect="non-scaling-stroke"></line>` : '';
 
-    document.getElementById('f-lbl').textContent = desdeQR && origen === hashId ? 'Estás aquí' : 'Punto de partida · ejemplo';
+    document.getElementById('f-lbl').textContent = porGPS ? 'Estás aquí · según tu GPS' : aqui ? 'Estás aquí' : 'Punto de partida · ejemplo';
     document.getElementById('f-nombre').textContent = o.nombre;
     document.getElementById('f-meta').textContent = `Punto ${o.id} · ${o.tipo} · ${o.lat.toFixed(5)}, ${o.lng.toFixed(5)}`;
     const res = document.getElementById('f-res');
@@ -267,7 +269,13 @@
     yo.hidden = !dentro;
     if (dentro) { yo.style.left = (xy.x * 100) + '%'; yo.style.top = (xy.y * 100) + '%'; }
     const c = cercano(gps);
-    let txt = dentro ? `Estás cerca de ${c.p.nombre} (${Math.round(c.d)} m)` : 'Estás fuera del plano del campamento';
+    if (dentro && (!porGPS || c.p.id !== origen)) {
+      porGPS = true;
+      origen = c.p.id;
+      if (destino === origen) destino = null;
+      render();
+    }
+    let txt = dentro ? `Estás en ${c.p.nombre} (a ${Math.round(c.d)} m)` : 'Estás fuera del plano del campamento';
     if (destino) {
       const d = porId[destino], m = distancia(gps, d);
       txt += m < 25 ? ` · Llegaste a ${d.nombre}` : ` · Faltan ${Math.round(m / 10) * 10} m hacia el ${rumbo(gps, d)} para ${d.nombre}`;
@@ -283,7 +291,7 @@
   }
   document.getElementById('btn-gps').onclick = e => {
     if (vigilancia !== null) {
-      navigator.geolocation.clearWatch(vigilancia); vigilancia = null; yo.hidden = true;
+      navigator.geolocation.clearWatch(vigilancia); vigilancia = null; yo.hidden = true; porGPS = false; gps = null; render();
       e.target.textContent = 'Usar mi ubicación (GPS)'; estado.textContent = ''; return;
     }
     if (!('geolocation' in navigator)) { errGPS(); return; }
