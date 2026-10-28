@@ -98,8 +98,10 @@
   @media (prefers-reduced-motion: reduce) { svg.trazo line { animation: none; } }
   .gps-ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 12px; }
   #gps-estado { font-size: 14px; color: var(--muted); min-width: 0; }
-  .gps-yo { position: absolute; width: 20px; height: 20px; margin: -10px 0 0 -10px; border-radius: 50%; background: #1a73e8; border: 3px solid #fff;
-    box-shadow: 0 0 0 6px rgba(26,115,232,.25); z-index: 4; pointer-events: none; transition: left .6s, top .6s; }
+  .gps-yo { position: absolute; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%; background: var(--here); border: 3px solid #fff;
+    z-index: 4; pointer-events: none; transition: left .8s, top .8s; animation: pulso 1.6s infinite; }
+  @media (prefers-reduced-motion: reduce) { .gps-yo { animation: none; transition: none; } }
+  .tag { transition: left .8s, top .8s; }
   @media (max-width: 520px) { .ruta-ctl { grid-template-columns: minmax(0, 1fr); } }
 </style>
 
@@ -208,24 +210,31 @@
     selO.value = origen;
     selD.value = destino || '';
     mapa.querySelectorAll('.pin').forEach(el => {
-      el.classList.toggle('aqui', el.dataset.id === origen);
+      el.classList.toggle('aqui', !porGPS && el.dataset.id === origen);
       el.classList.toggle('destino', el.dataset.id === destino);
     });
     mapa.querySelectorAll('.tag').forEach(el => el.remove());
     const aqui = porGPS || (desdeQR && origen === hashId);
-    etiqueta(o, aqui ? 'Estás aquí' : 'Partida');
+    // Con GPS, el punto de partida es la posición real del celular, no el lugar más cercano
+    const enVivo = porGPS && gps;
+    const po = enVivo ? aPlano(gps.lat, gps.lng) : o, og = enVivo ? gps : o;
+    yo.hidden = !enVivo;
+    if (enVivo) { yo.style.left = (po.x * 100) + '%'; yo.style.top = (po.y * 100) + '%'; }
+    etiqueta(po, aqui ? 'Estás aquí' : 'Partida');
     if (d) etiqueta(d, d.nombre, 'dest');
-    svg.innerHTML = d ? `<line x1="${o.x * W}" y1="${o.y * H}" x2="${d.x * W}" y2="${d.y * H}" vector-effect="non-scaling-stroke"></line>` : '';
+    svg.innerHTML = d ? `<line x1="${po.x * W}" y1="${po.y * H}" x2="${d.x * W}" y2="${d.y * H}" vector-effect="non-scaling-stroke"></line>` : '';
 
     document.getElementById('f-lbl').textContent = porGPS ? 'Estás aquí · según tu GPS' : aqui ? 'Estás aquí' : 'Punto de partida · ejemplo';
     document.getElementById('f-nombre').textContent = o.nombre;
-    document.getElementById('f-meta').textContent = `Punto ${o.id} · ${o.tipo} · ${o.lat.toFixed(5)}, ${o.lng.toFixed(5)}`;
+    document.getElementById('f-meta').textContent = enVivo
+      ? `A ${Math.round(distancia(gps, o))} m del punto ${o.id} · ${gps.lat.toFixed(5)}, ${gps.lng.toFixed(5)} · precisión ±${Math.round(gps.prec)} m`
+      : `Punto ${o.id} · ${o.tipo} · ${o.lat.toFixed(5)}, ${o.lng.toFixed(5)}`;
     const res = document.getElementById('f-res');
     if (d) {
-      const m = distancia(o, d);
+      const m = distancia(og, d);
       res.innerHTML = `<div><b>${m < 1000 ? Math.round(m / 10) * 10 + ' m' : (m / 1000).toFixed(1).replace('.', ',') + ' km'}</b><span>distancia</span></div>
         <div><b>${Math.max(1, Math.round(m / 75))} min</b><span>a pie</span></div>
-        <div><b>${rumbo(o, d)}</b><span>dirección</span></div>`;
+        <div><b>${m < 25 ? 'llegaste' : rumbo(og, d)}</b><span>dirección</span></div>`;
       res.hidden = false;
     } else {
       res.hidden = true;
@@ -266,21 +275,17 @@
     gps = { lat: pos.coords.latitude, lng: pos.coords.longitude, prec: pos.coords.accuracy };
     const xy = aPlano(gps.lat, gps.lng);
     const dentro = xy.x >= 0 && xy.x <= 1 && xy.y >= 0 && xy.y <= 1;
-    yo.hidden = !dentro;
-    if (dentro) { yo.style.left = (xy.x * 100) + '%'; yo.style.top = (xy.y * 100) + '%'; }
     const c = cercano(gps);
-    if (dentro && (!porGPS || c.p.id !== origen)) {
+    if (dentro) {
       porGPS = true;
       origen = c.p.id;
       if (destino === origen) destino = null;
-      render();
+      estado.textContent = 'GPS activo: el punto rojo se mueve contigo.';
+    } else {
+      porGPS = false;
+      estado.textContent = `Estás fuera del plano del campamento (el lugar más cercano es ${c.p.nombre}, a ${Math.round(c.d)} m).`;
     }
-    let txt = dentro ? `Estás en ${c.p.nombre} (a ${Math.round(c.d)} m)` : 'Estás fuera del plano del campamento';
-    if (destino) {
-      const d = porId[destino], m = distancia(gps, d);
-      txt += m < 25 ? ` · Llegaste a ${d.nombre}` : ` · Faltan ${Math.round(m / 10) * 10} m hacia el ${rumbo(gps, d)} para ${d.nombre}`;
-    }
-    estado.textContent = txt + ` · precisión ±${Math.round(gps.prec)} m`;
+    render();
   }
   function errGPS(e) {
     estado.textContent = e && e.code === 1
@@ -291,7 +296,7 @@
   }
   document.getElementById('btn-gps').onclick = e => {
     if (vigilancia !== null) {
-      navigator.geolocation.clearWatch(vigilancia); vigilancia = null; yo.hidden = true; porGPS = false; gps = null; render();
+      navigator.geolocation.clearWatch(vigilancia); vigilancia = null; porGPS = false; gps = null; render();
       e.target.textContent = 'Usar mi ubicación (GPS)'; estado.textContent = ''; return;
     }
     if (!('geolocation' in navigator)) { errGPS(); return; }
@@ -305,7 +310,6 @@
     if (id === origen) return;
     destino = id;
     render();
-    if (gps) enGPS({ coords: { latitude: gps.lat, longitude: gps.lng, accuracy: gps.prec } });
   }
 
   PUNTOS.forEach(p => {
